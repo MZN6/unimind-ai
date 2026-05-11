@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UniMind AI – مساعدك الجامعي</title>
+<meta name="description" content="مساعد جامعي ذكي مدعوم بـ Claude AI — لخّص محاضراتك، اسأل أسئلة، وأنشئ اختبارات في ثوانٍ" />
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css" />
+
+<!-- PDF.js -->
+<script type="module">
+  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/+esm';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.2.67/build/pdf.worker.min.mjs';
+  window.__pdfjsLib = pdfjsLib;
+</script>
+
+<style>
+/* ══════════════════════════════════════════
+   TOKENS & RESET
+══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* palette */
+  --black:      #060b09;
+  --bg:         #080f0c;
+  --bg2:        #0c1812;
+  --bg3:        #101e17;
+  --surface:    #14251c;
+  --surface2:   #1a2f24;
+  --surface3:   #20382b;
+
+  /* teal */
+  --t-600: #0a6645;
+  --t-500: #0f9060;
+  --t-400: #1db97a;
+  --t-300: #3ed698;
+  --t-200: #74e8b8;
+  --t-100: #b4f4d8;
+
+  /* amber */
+  --a-500: #d97706;
+  --a-400: #f59e0b;
+  --a-300: #fbbf24;
+  --a-100: #fde68a;
+
+  /* red */
+  --r-400: #ef4444;
+  --r-200: #fca5a5;
+
+  /* text */
+  --text:    #dff0e8;
+  --text2:   #8fb8a0;
+  --text3:   #4d7a62;
+  --text4:   #2a4a38;
+
+  /* borders */
+  --b1: rgba(61,214,152,0.09);
+  --b2: rgba(61,214,152,0.22);
+  --b3: rgba(61,214,152,0.40);
+
+  /* glow */
+  --glow:      rgba(29,185,122,0.38);
+  --glow-soft: rgba(29,185,122,0.14);
+
+  /* layout */
+  --sidebar-w: 300px;
+  --radius-sm: 8px;
+  --radius:    14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+
+  /* easing */
+  --ease: cubic-bezier(0.4,0,0.2,1);
+}
+
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  font-family: 'Cairo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--t-500); }
+
+/* ══════════════════════════════════════════
+   AMBIENT BACKGROUND
+══════════════════════════════════════════ */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 5% 5%,   rgba(29,185,122,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 95% 90%,  rgba(245,158,11,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 50% 50%,  rgba(29,185,122,0.04) 0%, transparent 60%);
+}
+
+/* Noise grain overlay */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 180px;
+}
+
+/* ══════════════════════════════════════════
+   LAYOUT SHELL
+══════════════════════════════════════════ */
+.shell {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════ */
+.sidebar {
+  position: sticky; top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--bg2);
+  border-left: 0.5px solid var(--b1);
+  display: flex; flex-direction: column;
+  padding: 0 0 2rem;
+}
+
+/* Brand */
+.sb-brand {
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+  border-bottom: 0.5px solid var(--b1);
+}
+.sb-logo {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px;
+  background: linear-gradient(135deg, var(--t-600), var(--t-300));
+  border-radius: 50%;
+  font-size: 30px;
+  box-shadow: 0 0 36px var(--glow), 0 0 72px var(--glow-soft);
+  margin-bottom: 12px;
+  animation: logoBreath 4s ease-in-out infinite;
+}
+@keyframes logoBreath {
+  0%,100% { box-shadow: 0 0 36px var(--glow), 0 0 72px var(--glow-soft); }
+  50%      { box-shadow: 0 0 56px var(--glow), 0 0 100px var(--glow-soft); }
+}
+.sb-title {
+  font-family: 'Amiri', serif;
+  font-size: 1.75rem; font-weight: 700;
+  color: var(--t-300);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.sb-sub { font-size: 12px; color: var(--text3); }
+.version-pill {
+  display: inline-block;
+  margin-top: 10px;
+  background: rgba(245,158,11,0.12);
+  color: var(--a-300);
+  border: 0.5px solid rgba(245,158,11,0.28);
+  border-radius: 99px;
+  font-size: 10px; letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 3px 12px;
+}
+
+/* Sidebar sections */
+.sb-body { padding: 1.25rem 1.25rem 0; flex: 1; }
+
+.sb-label {
+  font-size: 10px; font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 1.8px; text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-right: 2px;
+}
+
+.sb-block { margin-bottom: 1.25rem; }
+
+/* File status */
+.file-status {
+  background: var(--surface);
+  border: 0.5px solid var(--b1);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  transition: border-color 0.25s;
+}
+.file-status.ready { border-color: var(--b2); }
+
+.status-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+}
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text3);
+  flex-shrink: 0;
+}
+.status-dot.on {
+  background: var(--t-400);
+  box-shadow: 0 0 8px var(--t-500);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%,100% { opacity: 1; } 50% { opacity: 0.5; }
+}
+.status-name {
+  flex: 1; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-top: 10px;
+}
+.stat-box {
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  text-align: center;
+}
+.stat-val { font-size: 17px; font-weight: 800; color: var(--t-300); line-height: 1; }
+.stat-key { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+/* Upload zone */
+.upload-zone {
+  position: relative;
+  border: 1.5px dashed var(--b2);
+  border-radius: var(--radius);
+  padding: 1.75rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s var(--ease);
+  background: var(--surface);
+  overflow: hidden;
+}
+.upload-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 110%, rgba(29,185,122,0.07) 0%, transparent 65%);
+  pointer-events: none;
+}
+.upload-zone:hover, .upload-zone.drag {
+  border-color: var(--t-300);
+  background: rgba(29,185,122,0.045);
+  transform: translateY(-1px);
+}
+.upload-zone.loaded {
+  border-color: var(--t-500);
+  border-style: solid;
+  background: rgba(29,185,122,0.06);
+}
+.upload-icon {
+  font-size: 28px; color: var(--t-400);
+  margin-bottom: 8px;
+  transition: transform 0.25s;
+  display: block;
+}
+.upload-zone:hover .upload-icon { transform: translateY(-3px); }
+.upload-zone.loaded .upload-icon { color: var(--t-300); }
+.upload-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.upload-hint  { font-size: 11px; color: var(--text3); }
+
+/* Sidebar tip */
+.sb-tip {
+  margin: 0 1.25rem;
+  background: rgba(245,158,11,0.08);
+  border: 0.5px solid rgba(245,158,11,0.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 11.5px; color: var(--a-100);
+  line-height: 1.7;
+}
+
+/* ══════════════════════════════════════════
+   MAIN
+══════════════════════════════════════════ */
+.main {
+  display: flex; flex-direction: column;
+  min-height: 100vh;
+  padding: 0 2.5rem 4rem;
+  max-width: 900px;
+}
+
+/* Page header */
+.page-head {
+  padding: 2.5rem 0 2rem;
+  animation: slideDown 0.55s var(--ease) both;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-18px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-title {
+  font-family: 'Amiri', serif;
+  font-size: 2.6rem; font-weight: 700;
+  color: var(--t-300);
+  letter-spacing: -1px; line-height: 1;
+  margin-bottom: 6px;
+}
+.page-sub { font-size: 14px; color: var(--text2); }
+
+/* ══════════════════════════════════════════
+   TABS
+══════════════════════════════════════════ */
+.tabs-nav {
+  display: flex; gap: 4px;
+  background: var(--bg2);
+  border: 0.5px solid var(--b1);
+  border-radius: var(--radius-lg);
+  padding: 5px;
+  margin-bottom: 2rem;
+  animation: slideDown 0.55s 0.05s var(--ease) both;
+}
+.tab-btn {
+  flex: 1;
+  padding: 11px 8px;
+  background: transparent;
+  border: none; cursor: pointer;
+  border-radius: var(--radius);
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px; font-weight: 600;
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.22s var(--ease);
+  white-space: nowrap;
+}
+.tab-btn:hover:not(.active) {
+  background: var(--surface);
+  color: var(--text);
+}
+.tab-btn.active {
+  background: var(--surface2);
+  color: var(--t-300);
+  box-shadow: 0 0 0 0.5px var(--b2), 0 3px 14px rgba(29,185,122,0.14);
+}
+.tab-icon { font-size: 16px; }
+
+.tab-panel { display: none; animation: fadeUp 0.35s var(--ease) both; }
+.tab-panel.active { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ══════════════════════════════════════════
+   SHARED COMPONENTS
+══════════════════════════════════════════ */
+
+/* Empty state */
+.empty {
+  text-align: center; padding: 5rem 2rem; direction: rtl;
+}
+.empty-icon { font-size: 56px; margin-bottom: 1rem; opacity: 0.5; }
+.empty-title { font-size: 18px; font-weight: 700; color: var(--text2); margin-bottom: 8px; }
+.empty-desc  { font-size: 13px; color: var(--text3); line-height: 1.9; }
+
+/* Section divider */
+.divider {
+  display: flex; align-items: center; gap: 14px;
+  margin: 0 0 1.5rem; direction: rtl;
+}
+.divider-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--text3); letter-spacing: 1.5px;
+  text-transform: uppercase; white-space: nowrap;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 0.5px;
+  background: linear-gradient(90deg, transparent, var(--b1), transparent);
+}
+
+/* Card */
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--b1);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: border-color 0.2s;
+}
+.card:hover { border-color: var(--b2); }
+
+/* Answer card */
+.answer-card {
+  background: var(--bg3);
+  border: 0.5px solid var(--b2);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 1.5rem;
+  box-shadow: 0 0 50px rgba(29,185,122,0.07), 0 12px 40px rgba(0,0,0,0.35);
+  animation: fadeUp 0.4s var(--ease) both;
+}
+.answer-head {
+  background: linear-gradient(90deg, rgba(29,185,122,0.14) 0%, transparent 100%);
+  border-bottom: 0.5px solid var(--b1);
+  padding: 12px 1.5rem;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 700; color: var(--t-200);
+  direction: rtl;
+}
+.answer-head i { font-size: 17px; color: var(--t-400); }
+.answer-body {
+  padding: 1.5rem;
+  font-size: 14.5px; line-height: 2.0;
+  color: var(--text);
+  direction: rtl; text-align: right;
+  white-space: pre-wrap; word-break: break-word;
+}
+.answer-body.streaming::after {
+  content: '▋';
+  animation: blink 0.7s step-end infinite;
+  color: var(--t-400);
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Error box */
+.error-box {
+  background: rgba(239,68,68,0.10);
+  border: 0.5px solid rgba(239,68,68,0.30);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px; color: var(--r-200);
+  display: flex; align-items: flex-start; gap: 10px;
+  direction: rtl; margin-top: 1rem;
+  animation: fadeUp 0.3s var(--ease) both;
+}
+.error-box i { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+
+/* Textarea */
+.q-area {
+  width: 100%;
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px;
+  direction: rtl; text-align: right;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 0.5px solid var(--b1);
+  border-radius: var(--radius);
+  color: var(--text);
+  resize: vertical;
+  min-height: 110px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  line-height: 1.75;
+}
+.q-area:focus {
+  outline: none;
+  border-color: var(--t-500);
+  box-shadow: 0 0 0 3px rgba(29,185,122,0.12);
+}
+.q-area::placeholder { color: var(--text3); }
+
+/* Primary button */
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 13px 28px;
+  background: linear-gradient(135deg, var(--t-600) 0%, var(--t-500) 100%);
+  color: #fff;
+  border: none; border-radius: var(--radius);
+  font-family: 'Cairo', sans-serif;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s var(--ease);
+  box-shadow: 0 4px 22px rgba(29,185,122,0.28);
+  position: relative; overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, transparent 55%);
+  pointer-events: none;
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(29,185,122,0.42);
+}
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-primary i { font-size: 19px; }
+
+/* Ghost button */
+.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 20px;
+  background: var(--surface);
+  color: var(--text2);
+  border: 0.5px solid var(--b1);
+  border-radius: var(--radius);
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.btn-ghost:hover { border-color: var(--b2); color: var(--text); background: var(--surface2); }
+
+/* Select */
+.select-wrap { position: relative; }
+.select-wrap select {
+  width: 100%;
+  font-family: 'Cairo', sans-serif; font-size: 14px;
+  direction: rtl;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 0.5px solid var(--b1);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer; appearance: none;
+  transition: border-color 0.2s;
+}
+.select-wrap select:focus { outline: none; border-color: var(--t-500); }
+.select-wrap::after {
+  content: '\e5c5';
+  font-family: 'Material Icons';
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text3); pointer-events: none; font-size: 18px;
+}
+.select-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--text3); margin-bottom: 7px;
+  letter-spacing: 0.5px;
+}
+
+/* Spinner */
+.spinner-wrap {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; padding: 2rem;
+  color: var(--text2); font-size: 14px;
+}
+.spin-ring {
+  width: 22px; height: 22px;
+  border: 2px solid var(--b2);
+  border-top-color: var(--t-400);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════════════
+   SUMMARY TABS (inner)
+══════════════════════════════════════════ */
+.summary-modes {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.mode-pill {
+  padding: 7px 16px;
+  background: var(--surface);
+  border: 0.5px solid var(--b1);
+  border-radius: 99px;
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px; font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.mode-pill:hover { border-color: var(--b2); color: var(--text); }
+.mode-pill.active {
+  background: var(--surface2);
+  border-color: var(--b3);
+  color: var(--t-300);
+  box-shadow: 0 0 0 0.5px var(--b2);
+}
+
+/* ══════════════════════════════════════════
+   QUIZ
+══════════════════════════════════════════ */
+.quiz-controls {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1rem; margin-bottom: 1.25rem;
+}
+.difficulty-btns { display: flex; gap: 6px; }
+.diff-btn {
+  flex: 1; padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; border: 0.5px solid var(--b1);
+  background: var(--surface); color: var(--text2);
+  transition: all 0.18s;
+}
+.diff-btn:hover { border-color: var(--b2); }
+.diff-btn.active-easy   { background: rgba(16,185,129,0.12); border-color: var(--t-500); color: var(--t-300); }
+.diff-btn.active-medium { background: rgba(245,158,11,0.12); border-color: var(--a-400); color: var(--a-300); }
+.diff-btn.active-hard   { background: rgba(239,68,68,0.10);  border-color: var(--r-400); color: var(--r-200); }
+
+.quiz-q-card {
+  background: var(--bg3);
+  border: 0.5px solid var(--b1);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  direction: rtl;
+  transition: border-color 0.2s;
+  animation: fadeUp 0.35s var(--ease) both;
+}
+.quiz-q-card:hover { border-color: var(--b2); }
+.quiz-num {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text3); text-transform: uppercase; margin-bottom: 10px;
+}
+.quiz-q-text {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  line-height: 1.65; margin-bottom: 1rem;
+}
+.quiz-options { display: flex; flex-direction: column; gap: 7px; }
+.quiz-opt {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 0.5px solid var(--b1);
+  background: var(--surface);
+  font-size: 13.5px; color: var(--text2);
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  text-align: right;
+  direction: rtl;
+}
+.quiz-opt:hover:not(.revealed) { border-color: var(--b2); color: var(--text); background: var(--surface2); }
+.quiz-opt input[type="radio"] { display: none; }
+.quiz-opt.selected:not(.revealed) { border-color: var(--t-500); background: rgba(29,185,122,0.09); color: var(--t-200); }
+.quiz-opt.correct { background: rgba(16,185,129,0.12) !important; border-color: var(--t-400) !important; color: var(--t-200) !important; }
+.quiz-opt.wrong   { background: rgba(239,68,68,0.09)  !important; border-color: var(--r-400)  !important; color: var(--r-200)  !important; }
+
+.quiz-explain {
+  margin-top: 10px; padding: 10px 14px;
+  background: rgba(29,185,122,0.06);
+  border-radius: var(--radius-sm);
+  border-right: 3px solid var(--t-500);
+  font-size: 13px; color: var(--text2);
+  direction: rtl; line-height: 1.75;
+}
+
+.quiz-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 1.5rem; gap: 12px; direction: rtl;
+}
+.score-display {
+  background: var(--surface);
+  border: 0.5px solid var(--b2);
+  border-radius: 99px;
+  padding: 10px 22px;
+  font-size: 16px; font-weight: 800;
+  color: var(--t-300);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; border-left: none; border-bottom: 0.5px solid var(--b1); }
+  .main { padding: 0 1.25rem 3rem; }
+  .page-title { font-size: 2rem; }
+  .tabs-nav { flex-wrap: wrap; }
+  .tab-btn { font-size: 12px; padding: 9px 6px; }
+  .quiz-controls { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .quiz-controls { grid-template-columns: 1fr; }
+  .tab-btn .tab-label { display: none; }
+  .tab-btn { flex: 0 0 auto; }
+}
+</style>
+</head>
+
+<body>
+<div class="shell">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">🎓</div>
+      <h1 class="sb-title">UniMind AI</h1>
+      <p class="sb-sub">مساعدك الجامعي الذكي</p>
+      <span class="version-pill">Claude Powered</span>
+    </div>
+
+    <div class="sb-body">
+
+      <!-- PDF Upload -->
+      <div class="sb-block">
+        <div class="sb-label">ملف المحاضرة</div>
+        <div class="upload-zone" id="uploadZone"
+             onclick="document.getElementById('fileInput').click()"
+             ondragover="dragOver(event)"
+             ondragleave="dragLeave(event)"
+             ondrop="dropFile(event)">
+          <i class="ti ti-cloud-upload upload-icon" id="uploadIcon"></i>
+          <div class="upload-title" id="uploadTitle">اسحب ملف PDF أو اضغط للرفع</div>
+          <div class="upload-hint" id="uploadHint">PDF حتى 50MB</div>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf" style="display:none" onchange="handleFile(this.files[0])" />
+      </div>
+
+      <!-- File status -->
+      <div class="sb-block">
+        <div class="sb-label">حالة الملف</div>
+        <div class="file-status" id="fileStatus">
+          <div class="status-row">
+            <div class="status-dot" id="statusDot"></div>
+            <div class="status-name" id="statusName">لم يُرفع ملف بعد</div>
+          </div>
+          <div class="stats-grid" id="statsGrid" style="display:none">
+            <div class="stat-box">
+              <div class="stat-val" id="statPages">—</div>
+              <div class="stat-key">صفحة</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statChars">—</div>
+              <div class="stat-key">ألف حرف</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sb-body -->
+
+    <div class="sb-tip">
+      💡 ارفع محاضرتك واستخدم الأدوات أعلاه للاستفادة القصوى من وقت دراستك
+    </div>
+  </aside>
+
+  <!-- ══════════════ MAIN ══════════════ -->
+  <main class="main">
+    <div class="page-head">
+      <h1 class="page-title">UniMind AI</h1>
+      <p class="page-sub">افهم محاضراتك · لخّص · اسأل · اختبر</p>
+    </div>
+
+    <!-- TABS NAV -->
+    <nav class="tabs-nav" role="tablist">
+      <button class="tab-btn active" onclick="switchTab('qa',this)" role="tab">
+        <i class="ti ti-message-circle-2 tab-icon"></i>
+        <span class="tab-label">الأسئلة</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('summary',this)" role="tab">
+        <i class="ti ti-align-left tab-icon"></i>
+        <span class="tab-label">الملخص</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('quiz',this)" role="tab">
+        <i class="ti ti-brain tab-icon"></i>
+        <span class="tab-label">الاختبار</span>
+      </button>
+    </nav>
+
+    <!-- ══ TAB: Q&A ══ -->
+    <div class="tab-panel active" id="panel-qa">
+      <div id="qa-empty" class="empty">
+        <div class="empty-icon">📄</div>
+        <div class="empty-title">ارفع ملف المحاضرة أولاً</div>
+        <div class="empty-desc">بعد رفع الملف يمكنك طرح أي سؤال<br/>وسيجيبك المساعد من محتوى محاضرتك</div>
+      </div>
+      <div id="qa-form" style="display:none">
+        <div class="divider"><span class="divider-label">اطرح سؤالك</span></div>
+        <textarea class="q-area" id="qaQuestion"
+                  placeholder="مثال: اشرح مفهوم التعلم الآلي بأسلوب مبسّط..."></textarea>
+        <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-end;">
+          <button class="btn-primary" id="askBtn" onclick="doAsk()">
+            <i class="ti ti-sparkles"></i> اسأل المساعد
+          </button>
+        </div>
+        <div id="qa-error" style="display:none"></div>
+        <div id="qa-answer" style="display:none" class="answer-card">
+          <div class="answer-head"><i class="ti ti-circle-check-filled"></i> الإجابة</div>
+          <div class="answer-body" id="qa-answer-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: SUMMARY ══ -->
+    <div class="tab-panel" id="panel-summary">
+      <div id="sum-empty" class="empty">
+        <div class="empty-icon">📝</div>
+        <div class="empty-title">ارفع ملف المحاضرة أولاً</div>
+        <div class="empty-desc">ثم اختر نوع الملخص المطلوب</div>
+      </div>
+      <div id="sum-form" style="display:none">
+        <div class="divider"><span class="divider-label">اختر نوع الملخص</span></div>
+        <div class="summary-modes">
+          <button class="mode-pill active" data-mode="quick"    onclick="selectMode(this)">⚡ ملخص سريع</button>
+          <button class="mode-pill"        data-mode="detailed" onclick="selectMode(this)">📖 تفصيلي</button>
+          <button class="mode-pill"        data-mode="bullets"  onclick="selectMode(this)">• نقاط رئيسية</button>
+          <button class="mode-pill"        data-mode="concepts" onclick="selectMode(this)">🔑 مفاهيم أساسية</button>
+          <button class="mode-pill"        data-mode="exam"     onclick="selectMode(this)">🎯 ملاحظات مراجعة</button>
+        </div>
+        <button class="btn-primary" id="sumBtn" onclick="doSummary()">
+          <i class="ti ti-file-description"></i> توليد الملخص
+        </button>
+        <div id="sum-error" style="display:none"></div>
+        <div id="sum-answer" style="display:none" class="answer-card">
+          <div class="answer-head"><i class="ti ti-notes"></i> <span id="sum-answer-label">الملخص</span></div>
+          <div class="answer-body" id="sum-answer-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: QUIZ ══ -->
+    <div class="tab-panel" id="panel-quiz">
+      <div id="quiz-empty" class="empty">
+        <div class="empty-icon">🧠</div>
+        <div class="empty-title">ارفع ملف المحاضرة أولاً</div>
+        <div class="empty-desc">ثم أنشئ اختباراً تلقائياً من محتوى محاضرتك</div>
+      </div>
+      <div id="quiz-setup" style="display:none">
+        <div class="divider"><span class="divider-label">إعدادات الاختبار</span></div>
+        <div class="quiz-controls">
+          <div>
+            <div class="select-label">عدد الأسئلة</div>
+            <div class="select-wrap">
+              <select id="numQuestions">
+                <option value="5">5 أسئلة</option>
+                <option value="8" selected>8 أسئلة</option>
+                <option value="10">10 أسئلة</option>
+                <option value="15">15 سؤالاً</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="select-label">مستوى الصعوبة</div>
+            <div class="difficulty-btns">
+              <button class="diff-btn" data-diff="easy"   onclick="selectDiff(this)">سهل 🟢</button>
+              <button class="diff-btn active-medium" data-diff="medium" onclick="selectDiff(this)">متوسط 🟡</button>
+              <button class="diff-btn" data-diff="hard"   onclick="selectDiff(this)">صعب 🔴</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary" id="quizGenBtn" onclick="doQuiz()">
+          <i class="ti ti-brain"></i> توليد الاختبار
+        </button>
+        <div id="quiz-error" style="display:none"></div>
+      </div>
+      <div id="quiz-area" style="display:none"></div>
+    </div>
+
+  </main>
+</div><!-- /shell -->
+
+<script type="module">
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let pdfText   = '';
+let summaryMode   = 'quick';
+let quizDifficulty = 'medium';
+let quizData  = [];
+let quizAnswers = {};
+let quizSubmitted = false;
+
+/* ══════════════════════════════════════════
+   TABS
+══════════════════════════════════════════ */
+window.switchTab = function(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+};
+
+/* ══════════════════════════════════════════
+   PDF UPLOAD
+══════════════════════════════════════════ */
+window.dragOver  = e => { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); };
+window.dragLeave = () => document.getElementById('uploadZone').classList.remove('drag');
+window.dropFile  = e => {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') handleFile(f);
+};
+
+window.handleFile = async function(file) {
+  if (!file) return;
+  const zone  = document.getElementById('uploadZone');
+  const icon  = document.getElementById('uploadIcon');
+  const title = document.getElementById('uploadTitle');
+  const hint  = document.getElementById('uploadHint');
+
+  icon.className  = 'ti ti-loader upload-icon';
+  icon.style.animation = 'spin 0.75s linear infinite';
+  title.textContent = 'جارٍ قراءة الملف...';
+  hint.textContent  = '';
+
+  try {
+    const pdfjsLib = window.__pdfjsLib;
+    if (!pdfjsLib) { await new Promise(r => setTimeout(r, 800)); }
+    const lib = window.__pdfjsLib;
+    const ab  = await file.arrayBuffer();
+    const pdf = await lib.getDocument({ data: ab }).promise;
+    let text  = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(s => s.str).join(' ') + '\n';
+    }
+    pdfText = text;
+
+    // Update UI
+    zone.classList.add('loaded');
+    icon.style.animation = '';
+    icon.className  = 'ti ti-file-check upload-icon';
+    title.textContent = file.name.length > 28 ? file.name.slice(0,26)+'…' : file.name;
+    hint.textContent  = '';
+
+    // Status panel
+    document.getElementById('statusDot').classList.add('on');
+    document.getElementById('statusName').textContent = file.name.length > 24 ? file.name.slice(0,22)+'…' : file.name;
+    document.getElementById('statsGrid').style.display = 'grid';
+    document.getElementById('statPages').textContent = pdf.numPages;
+    document.getElementById('statChars').textContent = Math.round(text.length/1000);
+    document.getElementById('fileStatus').classList.add('ready');
+
+    // Show forms
+    showForms();
+  } catch (err) {
+    icon.className  = 'ti ti-cloud-upload upload-icon';
+    icon.style.animation = '';
+    title.textContent = 'اسحب ملف PDF أو اضغط للرفع';
+    hint.textContent  = 'خطأ في قراءة الملف: ' + err.message;
+    hint.style.color  = 'var(--r-200)';
+  }
+};
+
+function showForms() {
+  // Q&A
+  document.getElementById('qa-empty').style.display  = 'none';
+  document.getElementById('qa-form').style.display   = 'block';
+  // Summary
+  document.getElementById('sum-empty').style.display = 'none';
+  document.getElementById('sum-form').style.display  = 'block';
+  // Quiz
+  document.getElementById('quiz-empty').style.display = 'none';
+  document.getElementById('quiz-setup').style.display = 'block';
+}
+
+/* ══════════════════════════════════════════
+   API CALLS
+══════════════════════════════════════════ */
+async function apiPost(endpoint, payload) {
+  const res = await fetch('/api/' + endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'خطأ من الخادم');
+  return data;
+}
+
+/* ── Q&A ── */
+window.doAsk = async function() {
+  const q = document.getElementById('qaQuestion').value.trim();
+  if (!q) return showErr('qa-error', 'اكتب سؤالك أولاً.');
+  if (!pdfText) return showErr('qa-error', 'ارفع ملف PDF أولاً.');
+
+  const btn = document.getElementById('askBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-ring"></span> جارٍ التفكير...';
+  hideEl('qa-error');
+
+  const card   = document.getElementById('qa-answer');
+  const body   = document.getElementById('qa-answer-body');
+  card.style.display = 'none';
+  body.className     = 'answer-body streaming';
+  body.textContent   = '';
+
+  try {
+    const data = await apiPost('ask', { pdf_text: pdfText, question: q });
+    card.style.display = 'block';
+    typewrite(body, data.answer);
+  } catch (err) {
+    showErr('qa-error', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-sparkles"></i> اسأل المساعد';
+  }
+};
+
+/* ── Summary ── */
+window.selectMode = function(el) {
+  document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  summaryMode = el.dataset.mode;
+};
+
+const MODE_LABELS = {
+  quick: 'ملخص سريع', detailed: 'ملخص تفصيلي',
+  bullets: 'نقاط رئيسية', concepts: 'مفاهيم أساسية', exam: 'ملاحظات مراجعة'
+};
+
+window.doSummary = async function() {
+  if (!pdfText) return showErr('sum-error', 'ارفع ملف PDF أولاً.');
+  const btn = document.getElementById('sumBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-ring"></span> جارٍ التوليد...';
+  hideEl('sum-error');
+
+  const card  = document.getElementById('sum-answer');
+  const body  = document.getElementById('sum-answer-body');
+  const label = document.getElementById('sum-answer-label');
+  card.style.display = 'none';
+  body.className     = 'answer-body streaming';
+  body.textContent   = '';
+  label.textContent  = MODE_LABELS[summaryMode] || 'الملخص';
+
+  try {
+    const data = await apiPost('summary', { pdf_text: pdfText, mode: summaryMode });
+    card.style.display = 'block';
+    typewrite(body, data.summary);
+  } catch (err) {
+    showErr('sum-error', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-file-description"></i> توليد الملخص';
+  }
+};
+
+/* ── Quiz ── */
+window.selectDiff = function(el) {
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.remove('active-easy','active-medium','active-hard');
+  });
+  quizDifficulty = el.dataset.diff;
+  el.classList.add('active-' + quizDifficulty);
+};
+
+window.doQuiz = async function() {
+  if (!pdfText) return showErr('quiz-error', 'ارفع ملف PDF أولاً.');
+  const numQ = parseInt(document.getElementById('numQuestions').value);
+  const btn  = document.getElementById('quizGenBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-ring"></span> جارٍ التوليد...';
+  hideEl('quiz-error');
+
+  try {
+    const data = await apiPost('quiz', {
+      pdf_text: pdfText,
+      num_questions: numQ,
+      difficulty: quizDifficulty,
+    });
+    quizData      = data.quiz;
+    quizAnswers   = {};
+    quizSubmitted = false;
+    renderQuiz();
+  } catch (err) {
+    showErr('quiz-error', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-brain"></i> توليد الاختبار';
+  }
+};
+
+function renderQuiz() {
+  const area = document.getElementById('quiz-area');
+  area.style.display = 'block';
+  area.innerHTML = '';
+
+  quizData.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'quiz-q-card';
+    card.style.animationDelay = (idx * 0.06) + 's';
+
+    const optsHtml = item.options.map((opt, oi) => `
+      <label class="quiz-opt" id="opt-${idx}-${oi}" onclick="selectOpt(${idx},${oi})">
+        <input type="radio" name="q${idx}" value="${oi}" />
+        <span>${opt}</span>
+      </label>
+    `).join('');
+
+    card.innerHTML = `
+      <div class="quiz-num">سؤال ${idx + 1} من ${quizData.length}</div>
+      <div class="quiz-q-text">${item.q}</div>
+      <div class="quiz-options" id="opts-${idx}">${optsHtml}</div>
+      <div class="quiz-explain" id="explain-${idx}" style="display:none">${item.explain || ''}</div>
+    `;
+    area.appendChild(card);
+  });
+
+  // Footer
+  const footer = document.createElement('div');
+  footer.className = 'quiz-footer';
+  footer.innerHTML = `
+    <button class="btn-primary" id="submitQuizBtn" onclick="submitQuiz()">
+      <i class="ti ti-check"></i> تسليم الإجابات
+    </button>
+    <button class="btn-ghost" onclick="resetQuiz()">
+      <i class="ti ti-refresh"></i> اختبار جديد
+    </button>
+    <div id="quiz-score" style="display:none"></div>
+  `;
+  area.appendChild(footer);
+}
+
+window.selectOpt = function(qIdx, oIdx) {
+  if (quizSubmitted) return;
+  quizAnswers[qIdx] = oIdx;
+  // Update visual selection
+  document.querySelectorAll(`#opts-${qIdx} .quiz-opt`).forEach((el, i) => {
+    el.classList.toggle('selected', i === oIdx);
+  });
+};
+
+window.submitQuiz = function() {
+  if (Object.keys(quizAnswers).length < quizData.length) {
+    alert('أجب على جميع الأسئلة أولاً!');
+    return;
+  }
+  quizSubmitted = true;
+  let score = 0;
+
+  quizData.forEach((item, idx) => {
+    const userAns    = quizAnswers[idx];
+    const correctAns = item.answer;
+    const isCorrect  = userAns === correctAns;
+    if (isCorrect) score++;
+
+    document.querySelectorAll(`#opts-${idx} .quiz-opt`).forEach((el, oi) => {
+      el.classList.add('revealed');
+      if (oi === correctAns) el.classList.add('correct');
+      else if (oi === userAns && !isCorrect) el.classList.add('wrong');
+    });
+    if (item.explain) {
+      document.getElementById(`explain-${idx}`).style.display = 'block';
+    }
+  });
+
+  const pct   = Math.round(score / quizData.length * 100);
+  const emoji = pct >= 80 ? '🏆' : pct >= 60 ? '📈' : '📖';
+  const scoreEl = document.getElementById('quiz-score');
+  scoreEl.style.display = 'flex';
+  scoreEl.innerHTML = `<span class="score-display">${emoji} &nbsp;${score}/${quizData.length} &nbsp;(${pct}%)</span>`;
+
+  document.getElementById('submitQuizBtn').style.display = 'none';
+};
+
+window.resetQuiz = function() {
+  quizData      = [];
+  quizAnswers   = {};
+  quizSubmitted = false;
+  document.getElementById('quiz-area').style.display = 'none';
+  document.getElementById('quiz-area').innerHTML = '';
+};
+
+/* ══════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════ */
+function typewrite(el, text) {
+  el.className = 'answer-body streaming';
+  el.textContent = '';
+  let i = 0;
+  const tick = () => {
+    if (i < text.length) {
+      el.textContent += text[i++];
+      setTimeout(tick, 7);
+    } else {
+      el.className = 'answer-body';
+    }
+  };
+  tick();
+}
+
+function showErr(elId, msg) {
+  const el = document.getElementById(elId);
+  el.style.display = 'flex';
+  el.className = 'error-box';
+  el.innerHTML = `<i class="ti ti-alert-triangle"></i><span>${msg}</span>`;
+}
+
+function hideEl(elId) {
+  document.getElementById(elId).style.display = 'none';
+}
+
+// Ctrl+Enter in Q&A
+document.getElementById('qaQuestion').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) window.doAsk();
+});
+</script>
+</body>
+</html>
