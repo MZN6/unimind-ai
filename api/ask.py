@@ -1,7 +1,7 @@
 import os
 import json
 from http.server import BaseHTTPRequestHandler
-import anthropic
+from openai import OpenAI
 
 
 class handler(BaseHTTPRequestHandler):
@@ -24,11 +24,11 @@ class handler(BaseHTTPRequestHandler):
             if not question:
                 return self._error(400, "question مطلوب")
 
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            api_key = os.environ.get("OPENAI_API_KEY")
             if not api_key:
-                return self._error(500, "مفتاح API غير مُعيَّن على الخادم")
+                return self._error(500, "OPENAI_API_KEY غير موجود")
 
-            client = anthropic.Anthropic(api_key=api_key)
+            client = OpenAI(api_key=api_key)
 
             system = """أنت مساعد جامعي عربي متخصص ومحترف.
 قواعدك:
@@ -44,13 +44,12 @@ class handler(BaseHTTPRequestHandler):
 سؤال الطالب:
 {question}"""
 
-            response = client.messages.create(
-               model="claude-3-5-sonnet-20241022",
-                max_tokens=1500,
-                system=system,
-                messages=[{"role": "user", "content": user}],
+            response = client.responses.create(
+                model="gpt-4o-mini",
+                input=system + "\n\n" + user,
             )
-            answer = response.content[0].text
+
+            answer = response.output_text
 
             self.send_response(200)
             self._set_cors()
