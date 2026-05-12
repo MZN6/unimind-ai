@@ -1,7 +1,7 @@
 import os
 import json
 from http.server import BaseHTTPRequestHandler
-import anthropic
+from openai import OpenAI
 
 
 SUMMARY_PROMPTS = {
@@ -26,39 +26,48 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
 
             pdf_text = body.get("pdf_text", "").strip()
-            mode     = body.get("mode", "quick")
+            mode = body.get("mode", "quick")
 
             if not pdf_text:
                 return self._error(400, "pdf_text مطلوب")
+
             if mode not in SUMMARY_PROMPTS:
-                return self._error(400, f"mode غير صالح. الخيارات: {list(SUMMARY_PROMPTS)}")
+                return self._error(400, "نوع الملخص غير صالح")
 
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            api_key = os.environ.get("OPENAI_API_KEY")
+
             if not api_key:
-                return self._error(500, "مفتاح API غير مُعيَّن على الخادم")
+                return self._error(500, "OPENAI_API_KEY غير موجود")
 
-            client = anthropic.Anthropic(api_key=api_key)
+            client = OpenAI(api_key=api_key)
 
             system = "أنت مساعد جامعي عربي محترف متخصص في تلخيص المحاضرات الأكاديمية. اكتب بأسلوب واضح ومنظم، استخدم العناوين والنقاط."
 
-            user = f"""{SUMMARY_PROMPTS[mode]}
+            user = f"""
+{SUMMARY_PROMPTS[mode]}
 
 محتوى المحاضرة:
-{pdf_text[:13000]}"""
+{pdf_text[:13000]}
+"""
 
-            response = client.messages.create(
-               model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
-                system=system,
-                messages=[{"role": "user", "content": user}],
+            response = client.responses.create(
+                model="gpt-4o-mini",
+                input=system + "\n\n" + user,
             )
-            summary = response.content[0].text
+
+            summary = response.output_text
 
             self.send_response(200)
             self._set_cors()
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
-            self.wfile.write(json.dumps({"summary": summary}, ensure_ascii=False).encode())
+
+            self.wfile.write(
+                json.dumps(
+                    {"summary": summary},
+                    ensure_ascii=False
+                ).encode()
+            )
 
         except Exception as e:
             self._error(500, str(e))
@@ -73,4 +82,10 @@ class handler(BaseHTTPRequestHandler):
         self._set_cors()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.end_headers()
-        self.wfile.write(json.dumps({"error": msg}, ensure_ascii=False).encode())
+
+        self.wfile.write(
+            json.dumps(
+                {"error": msg},
+                ensure_ascii=False
+            ).encode()
+        )
