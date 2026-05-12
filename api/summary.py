@@ -47,7 +47,7 @@ class handler(BaseHTTPRequestHandler):
 {pdf_text[:13000]}"""
 
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+               model="claude-3-5-sonnet-20241022",
                 max_tokens=2000,
                 system=system,
                 messages=[{"role": "user", "content": user}],
